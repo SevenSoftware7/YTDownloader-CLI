@@ -39,12 +39,15 @@ class Program {
             return;
         }
 
+        bool isConsoleFed = false;
         if (urls.Length == 0 && playlistUrls.Length == 0) {
             Console.WriteLine("Input URLs of videos to download (separated by space ( )), can be left empty");
             urls = Console.ReadLine()?.SplitWithTrimming(' ') ?? [];
 
             Console.WriteLine("Input URLs of playlists to download (separated by space ( )), can be left empty");
             playlistUrls = Console.ReadLine()?.SplitWithTrimming(' ') ?? [];
+
+            isConsoleFed = true;
         }
 
         List<IVideo> videos = [];
@@ -85,7 +88,9 @@ class Program {
         }
 
         Console.WriteLine($"{(succeedCount == 1 ? "1 video was" : $"{succeedCount} videos were")} downloaded!");
-        Thread.Sleep(5000);
+        if (isConsoleFed) {
+            Thread.Sleep(5000);
+        }
     }
     static async Task DownloadYouTubeVideo(IVideo video, DirectoryInfo outputDirectory, FileInfo ffmpegFile, string format) {
         YoutubeClient? youtube = new();
@@ -102,6 +107,7 @@ class Program {
         );
 
         Console.WriteLine("Download completed!");
+
         Console.WriteLine($"Video saved as: {outputFilePath}");
     }
 }
