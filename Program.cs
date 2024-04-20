@@ -89,7 +89,7 @@ class Program {
 
         Console.WriteLine($"{(succeedCount == 1 ? "1 video was" : $"{succeedCount} videos were")} downloaded!");
         if (isConsoleFed) {
-            Thread.Sleep(5000);
+            Console.ReadLine();
         }
     }
     static async Task DownloadYouTubeVideo(IVideo video, DirectoryInfo outputDirectory, FileInfo ffmpegFile, string format) {
