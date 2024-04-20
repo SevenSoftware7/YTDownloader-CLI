@@ -1,0 +1,91 @@
+name: .NET Core
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+
+    - uses: actions/checkout@v2
+
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 8.0.x
+
+    - name: Install dependencies
+      run: dotnet restore
+
+    - name: Build Linux
+      run: dotnet publish -r linux-x64 --configuration Release --self-contained --no-restore
+    - name: Download Linux FFMPEG
+      run: mkdir -p ./ffmpeg/linux-x64 && wget -nv -O ./ffmpeg/linux-x64/ffmpeg.tar.xz https://johnvansickle.com/ffmpeg/builds/ffmpeg-git-amd64-static.tar.xz
+    - name: Move Linux FFMPEG to Output directory
+      run: tar -Jxf ./ffmpeg/linux-x64/ffmpeg.tar.xz -C ./bin/Release/net8.0/linux-x64/publish/ --strip-components=1 --no-anchored 'ffmpeg'
+    - name: Tar the Linux Build
+      run: tar --exclude='*.pdb' -Jcf ./linux.tar.xz -C ./bin/Release/net8.0/linux-x64/publish/ $(ls ./bin/Release/net8.0/linux-x64/publish/)
+
+    - name: Build OSX
+      run: dotnet publish -r osx-x64 --configuration Release --self-contained --no-restore
+    - name: Download OSX FFMPEG
+      run: mkdir -p ./ffmpeg/osx-x64 && wget -nv -O ./ffmpeg/osx-x64/ffmpeg.7z https://evermeet.cx/ffmpeg/ffmpeg-114896-gf18de5bc4a.zip
+    - name: Move OSX FFMPEG to Output directory
+      run: unzip -j ./ffmpeg/osx-x64/ffmpeg.7z ffmpeg -d ./bin/Release/net8.0/osx-x64/publish/
+    - name: Zip the OSX Build
+      run: zip -x '*.pdb' --junk-paths -r ./osx.zip ./bin/Release/net8.0/osx-x64/publish/
+
+    - name: Build Windows
+      run: dotnet publish -r win-x64 --configuration Release --self-contained --no-restore
+    - name: Download Windows FFMPEG
+      run: mkdir -p ./ffmpeg/win-x64 && wget -nv -O ./ffmpeg/win-x64/ffmpeg.7z https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z
+    - name: Move Windows FFMPEG to Output directory
+      run: 7za x ./ffmpeg/win-x64/ffmpeg.7z -r '*/ffmpeg.exe' -o'./bin/Release/net8.0/win-x64/publish/'
+    - name: Zip the Windows Build
+      run: zip -x '*.pdb' --junk-paths -r ./windows.zip ./bin/Release/net8.0/win-x64/publish/
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.run_number }}
+        release_name: Release ${{ github.actor }}
+        body: ${{ github.triggering_actor }}
+        draft: false
+        prerelease: false
+
+    - name: Upload Linux Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./linux.tar.xz
+        asset_name: Linux.tar.xz
+        asset_content_type: application/zip
+
+    - name: Upload OSX Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./osx.zip
+        asset_name: OSX.zip
+        asset_content_type: application/zip
+
+    - name: Upload Windows Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./windows.zip
+        asset_name: Windows.zip
+        asset_content_type: application/zip
