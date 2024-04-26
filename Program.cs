@@ -16,7 +16,7 @@ class Program {
         Option<string[]> urls = new("--video", getDefaultValue: () => [], description: "The url(s) from which to download the video(s)");
         Option<string[]> playlistUrls = new("--playlist", getDefaultValue: () => [], description: "The url(s) of playlists from which to download the video(s)");
         Option<DirectoryInfo> outputDirectory = new("--output", getDefaultValue: () => new("./output/"), description: "The directory in which the downloaded videos will be placed");
-        Option<FileInfo> ffmpegFile = new("--ffmpeg", getDefaultValue: () => new(RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? ".ffmpeg.exe" : "./ffmpeg"), description: "The location of FFMPEG, used to convert the downloaded video to the desired format");
+        Option<FileInfo> ffmpegFile = new("--ffmpeg", getDefaultValue: () => new(RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "./ffmpeg.exe" : "./ffmpeg"), description: "The location of FFMPEG, used to convert the downloaded video to the desired format");
 
         RootCommand rootCommand = new("Download youtube videos/playlists") {
             format,
