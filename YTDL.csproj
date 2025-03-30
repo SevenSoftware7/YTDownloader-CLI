@@ -13,7 +13,7 @@
     <RuntimeIdentifiers>linux-x64;osx-x64;win-x64</RuntimeIdentifiers>
 
     <Title>YTDL</Title>
-    <Version>1.0.1</Version>
+    <Version>1.1.0</Version>
     <Description />
     <Authors>Seven</Authors>
   </PropertyGroup>
