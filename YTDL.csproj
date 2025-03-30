@@ -11,6 +11,11 @@
     <SelfContained>true</SelfContained>
     <TrimMode>CopyUsed</TrimMode>
     <RuntimeIdentifiers>linux-x64;osx-x64;win-x64</RuntimeIdentifiers>
+
+    <Title>YTDL</Title>
+    <Version>1.0.0</Version>
+    <Description />
+    <Authors>Seven</Authors>
   </PropertyGroup>
 
   <ItemGroup>

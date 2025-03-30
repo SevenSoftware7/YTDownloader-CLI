@@ -1,0 +1,43 @@
+name: Bump Project Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump-type:
+        description: 'Bump Type'
+        required: true
+        default: '*.*.^'
+        type: string
+
+jobs:
+  bump-project-version:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Update .csproj version
+      id: bump
+      uses: vers-one/dotnet-project-version-updater@v1.6
+      with:
+        file: "**/*.csproj"
+        version: ${{ github.event.inputs.bump-type }}
+
+    - name: Commit changes
+      id: commit
+      uses: EndBug/add-and-commit@v9
+      with:
+        add: '*.csproj'
+        message: 'chore: Update projects version to ${{ steps.bump.outputs.newVersion }}'
+        committer_name: GitHub Actions
+        committer_email: actions@github.com
+
+    - name: Dispatch release workflow
+      uses: peter-evans/repository-dispatch@v2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        event-type: release
+        client-payload: '{"version": "${{ steps.bump.outputs.newVersion }}"}'
