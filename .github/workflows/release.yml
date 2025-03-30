@@ -18,17 +18,6 @@ jobs:
       release-url: ${{ steps.create-release.outputs.upload_url }}
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        global-json-file: global.json
-
-    - name: Restore dependencies
-      run: dotnet restore
-
     - name: Create Release
       id: create-release
       uses: comnoco/create-release-action@v2.0.5
@@ -46,57 +35,69 @@ jobs:
     needs: setup
 
     steps:
-      - name: Build Linux
-        run: dotnet publish -r linux-x64 --configuration Release --self-contained --no-restore
-      - name: Download Linux FFMPEG
-        run: wget -nv -O ./bin/Release/net8.0/linux-x64/publish/ffmpeg https://github.com/eugeneware/ffmpeg-static/releases/download/b6.0/ffmpeg-linux-x64
-      - name: Make FFMPEG Executable
-        run: chmod +x ./bin/Release/net8.0/linux-x64/publish/ffmpeg
-      - name: Tar the Linux Build
-        run: tar --exclude='*.pdb' -Jcf ./linux.tar.xz -C ./bin/Release/net8.0/linux-x64/publish/ $(ls ./bin/Release/net8.0/linux-x64/publish/)
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Build OSX
-        run: dotnet publish -r osx-x64 --configuration Release --self-contained --no-restore
-      - name: Download OSX FFMPEG
-        run: wget -nv -O ./bin/Release/net8.0/osx-x64/publish/ffmpeg https://github.com/eugeneware/ffmpeg-static/releases/download/b6.0/ffmpeg-darwin-x64
-      - name: Make FFMPEG Executable
-        run: chmod +x ./bin/Release/net8.0/osx-x64/publish/ffmpeg
-      - name: Zip the OSX Build
-        run: zip -x '*.pdb' --junk-paths -r ./osx.zip ./bin/Release/net8.0/osx-x64/publish/
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        global-json-file: global.json
 
-      - name: Build Windows
-        run: dotnet publish -r win-x64 --configuration Release --self-contained --no-restore
-      - name: Download Windows FFMPEG
-        run: mkdir -p ./ffmpeg/win-x64 && wget -nv -O ./bin/Release/net8.0/win-x64/publish/ffmpeg.exe https://github.com/eugeneware/ffmpeg-static/releases/download/b6.0/ffmpeg-win32-x64
-      - name: Zip the Windows Build
-        run: zip -x '*.pdb' --junk-paths -r ./windows.zip ./bin/Release/net8.0/win-x64/publish/
+    - name: Restore dependencies
+      run: dotnet restore
 
-      - name: Upload Linux Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.setup.outputs.release-url }}
-          asset_path: ./linux.tar.xz
-          asset_name: Linux.tar.xz
-          asset_content_type: application/x-xz
 
-      - name: Upload OSX Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.setup.outputs.release-url }}
-          asset_path: ./osx.zip
-          asset_name: OSX.zip
-          asset_content_type: application/zip
+    - name: Build Linux
+      run: dotnet publish -r linux-x64 --configuration Release --self-contained --no-restore
+    - name: Download Linux FFMPEG
+      run: wget -nv -O ./bin/Release/net8.0/linux-x64/publish/ffmpeg https://github.com/eugeneware/ffmpeg-static/releases/download/b6.0/ffmpeg-linux-x64
+    - name: Make FFMPEG Executable
+      run: chmod +x ./bin/Release/net8.0/linux-x64/publish/ffmpeg
+    - name: Tar the Linux Build
+      run: tar --exclude='*.pdb' -Jcf ./linux.tar.xz -C ./bin/Release/net8.0/linux-x64/publish/ $(ls ./bin/Release/net8.0/linux-x64/publish/)
 
-      - name: Upload Windows Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.setup.outputs.release-url }}
-          asset_path: ./windows.zip
-          asset_name: Windows.zip
-          asset_content_type: application/zip
+    - name: Build OSX
+      run: dotnet publish -r osx-x64 --configuration Release --self-contained --no-restore
+    - name: Download OSX FFMPEG
+      run: wget -nv -O ./bin/Release/net8.0/osx-x64/publish/ffmpeg https://github.com/eugeneware/ffmpeg-static/releases/download/b6.0/ffmpeg-darwin-x64
+    - name: Make FFMPEG Executable
+      run: chmod +x ./bin/Release/net8.0/osx-x64/publish/ffmpeg
+    - name: Zip the OSX Build
+      run: zip -x '*.pdb' --junk-paths -r ./osx.zip ./bin/Release/net8.0/osx-x64/publish/
+
+    - name: Build Windows
+      run: dotnet publish -r win-x64 --configuration Release --self-contained --no-restore
+    - name: Download Windows FFMPEG
+      run: mkdir -p ./ffmpeg/win-x64 && wget -nv -O ./bin/Release/net8.0/win-x64/publish/ffmpeg.exe https://github.com/eugeneware/ffmpeg-static/releases/download/b6.0/ffmpeg-win32-x64
+    - name: Zip the Windows Build
+      run: zip -x '*.pdb' --junk-paths -r ./windows.zip ./bin/Release/net8.0/win-x64/publish/
+
+    - name: Upload Linux Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.setup.outputs.release-url }}
+        asset_path: ./linux.tar.xz
+        asset_name: Linux.tar.xz
+        asset_content_type: application/x-xz
+
+    - name: Upload OSX Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.setup.outputs.release-url }}
+        asset_path: ./osx.zip
+        asset_name: OSX.zip
+        asset_content_type: application/zip
+
+    - name: Upload Windows Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.setup.outputs.release-url }}
+        asset_path: ./windows.zip
+        asset_name: Windows.zip
+        asset_content_type: application/zip
