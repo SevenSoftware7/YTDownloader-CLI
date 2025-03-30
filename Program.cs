@@ -8,107 +8,142 @@ using YoutubeExplode.Videos;
 
 namespace YTDL;
 
+public class Program {
 
-class Program {
+	private static async Task<int> Main(string[] args) {
+		Option<string> format = new("--format", getDefaultValue: () => "mp4", description: "The format of the output file(s)");
+		Option<string[]> urls = new("--url", getDefaultValue: () => [], description: "The url(s) from which to download the video(s)");
+		Option<DirectoryInfo> outputDirectory = new("--output", getDefaultValue: () => new("./output/"), description: "The directory in which the downloaded videos will be placed");
+		Option<FileInfo> ffmpegFile = new("--ffmpeg", getDefaultValue: () => new(RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "./ffmpeg.exe" : "./ffmpeg"), description: "The location of FFMPEG, used to convert the downloaded video to the desired format");
 
-    static async Task<int> Main(string[] args) {
-        Option<string> format = new("--format", getDefaultValue: () => "mp4", description: "The format of the output file(s)");
-        Option<string[]> urls = new("--video", getDefaultValue: () => [], description: "The url(s) from which to download the video(s)");
-        Option<string[]> playlistUrls = new("--playlist", getDefaultValue: () => [], description: "The url(s) of playlists from which to download the video(s)");
-        Option<DirectoryInfo> outputDirectory = new("--output", getDefaultValue: () => new("./output/"), description: "The directory in which the downloaded videos will be placed");
-        Option<FileInfo> ffmpegFile = new("--ffmpeg", getDefaultValue: () => new(RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "./ffmpeg.exe" : "./ffmpeg"), description: "The location of FFMPEG, used to convert the downloaded video to the desired format");
+		RootCommand rootCommand = new("Download youtube videos/playlists") {
+			format,
+			urls,
+			outputDirectory,
+			ffmpegFile
+		};
 
-        RootCommand rootCommand = new("Download youtube videos/playlists") {
-            format,
-            urls,
-            playlistUrls,
-            outputDirectory,
-            ffmpegFile
-        };
+		rootCommand.SetHandler(Execute, format, urls, outputDirectory, ffmpegFile);
 
-        rootCommand.SetHandler( Execute, format, urls, playlistUrls, outputDirectory, ffmpegFile);
+		return await rootCommand.InvokeAsync(args);
+	}
 
-        return await rootCommand.InvokeAsync(args);
-    }
+	// Sanitize the video title to remove invalid characters from the file name
+	private static string GetSanitizedTitle(IVideo video) =>
+		string.Join("_", video.Title.Split(Path.GetInvalidFileNameChars()));
 
-    private async static Task Execute(string format, string[] urls, string[] playlistUrls, DirectoryInfo outputDirectory, FileInfo ffmpegDirectory) {
+	private static async Task Execute(string format, string[] urls, DirectoryInfo outputDirectory, FileInfo ffmpegDirectory) {
+		Directory.CreateDirectory(outputDirectory.FullName);
 
-        Directory.CreateDirectory(outputDirectory.FullName);
+		if (!ffmpegDirectory.Exists) {
+			Console.WriteLine("Directory of FFMPEG required.");
+			return;
+		}
 
-        if ( ! ffmpegDirectory.Exists ) {
-            Console.WriteLine("Directory of FFMPEG required.");
-            return;
-        }
+		string[] playlistUrls = [];
+		string[] videoUrls = [];
 
-        bool isConsoleFed = false;
-        if (urls.Length == 0 && playlistUrls.Length == 0) {
-            Console.WriteLine("Input URLs of videos to download (separated by space ( )), can be left empty");
-            urls = Console.ReadLine()?.SplitWithTrimming(' ') ?? [];
+		bool isConsoleFed = false;
+		if (urls.Length == 0) {
+			isConsoleFed = true;
 
-            Console.WriteLine("Input URLs of playlists to download (separated by space ( )), can be left empty");
-            playlistUrls = Console.ReadLine()?.SplitWithTrimming(' ') ?? [];
+			Console.WriteLine("Input URLs of videos/playlists to download (separated by space ( )), can be left empty");
 
-            isConsoleFed = true;
-        }
+			urls = Console.ReadLine()?.SplitWithTrimming(' ') ?? [];
+		}
 
-        List<IVideo> videos = [];
-        YoutubeClient? youtube = new();
+		HashSet<IVideo> videos = [];
+		YoutubeClient? youtube = new();
 
-        if (playlistUrls.Length != 0) {
-            try {
-                foreach (string playlistUrl in playlistUrls) {
-                    Playlist playlist = await youtube.Playlists.GetAsync(playlistUrl);
-                    IAsyncEnumerable<PlaylistVideo> vids = youtube.Playlists.GetVideosAsync(playlist.Id);
-                    await foreach (PlaylistVideo video in vids) {
-                        videos.Add(video);
-                    }
-                }
-            } catch (Exception e) {
-                Console.WriteLine($"Error while decoding playlist : {e.Message}");
-            }
-        }
-        if (urls.Length != 0) {
-            try {
-                foreach (string videoUrl in urls) {
-                    Video video = await youtube.Videos.GetAsync(videoUrl);
-                    videos.Add(video);
-                }
-            } catch (Exception e) {
-                Console.WriteLine($"Error while decoding urls : {e.Message}");
-            }
-        }
 
-        uint succeedCount = 0;
-        foreach (IVideo video in videos) {
-            try {
-                await DownloadYouTubeVideo(video, outputDirectory, ffmpegDirectory, format);
-                succeedCount++;
-            } catch (Exception e) {
-                Console.WriteLine("An error occurred while downloading the videos: " + e.Message);
-            }
-        }
+		videoUrls = [.. urls.Where(url => url.Contains("v="))];
+		playlistUrls = [.. urls.Except(videoUrls).Where(url => url.Contains("list="))];
 
-        Console.WriteLine($"{(succeedCount == 1 ? "1 video was" : $"{succeedCount} videos were")} downloaded!");
-        if (isConsoleFed) {
-            Console.ReadLine();
-        }
-    }
-    static async Task DownloadYouTubeVideo(IVideo video, DirectoryInfo outputDirectory, FileInfo ffmpegFile, string format) {
-        YoutubeClient? youtube = new();
+		if (playlistUrls.Length != 0) {
+			try {
+				foreach (string playlistUrl in playlistUrls) {
+					Playlist playlist = await youtube.Playlists.GetAsync(playlistUrl);
+					IAsyncEnumerable<PlaylistVideo> vids = youtube.Playlists.GetVideosAsync(playlist.Id);
+					await foreach (PlaylistVideo video in vids) {
+						videos.Add(video);
+					}
+				}
+			}
+			catch (Exception e) {
+				Console.WriteLine($"Error while decoding playlist : {e.Message}");
+			}
+		}
+		if (videoUrls.Length != 0) {
+			try {
+				foreach (string videoUrl in urls) {
+					Video video = await youtube.Videos.GetAsync(videoUrl);
+					videos.Add(video);
+				}
+			}
+			catch (Exception e) {
+				Console.WriteLine($"Error while decoding videos : {e.Message}");
+			}
+		}
 
-        // Sanitize the video title to remove invalid characters from the file name
-        string sanitizedTitle = string.Join("_", video.Title.Split(Path.GetInvalidFileNameChars()));
+		uint videoCount = (uint)videos.Count;
+		uint trimmedVideoCount = videoCount;
+		uint successCount = 0;
+		foreach (IVideo video in videos) {
+			if (outputDirectory.GetFiles().Any(file => file.Name == $"{GetSanitizedTitle(video)}.{format}")) {
+				Console.WriteLine($"Video already exists in the output directory, skipping : {video.Title} ({video.Url})");
+				trimmedVideoCount--;
+				continue;
+			}
 
-        string outputFilePath = Path.Combine(outputDirectory.FullName, $"{sanitizedTitle}.{format}");
+			try {
+				await DownloadYouTubeVideo(video, outputDirectory, ffmpegDirectory, format);
+				successCount++;
+			}
+			catch (Exception e) {
+				Console.WriteLine($"Error occurred while downloading video : {e.Message}");
+			}
+		}
 
-        await youtube.Videos.DownloadAsync(video.Url, outputFilePath, o => o
-            .SetContainer(format)
-            .SetPreset(ConversionPreset.VerySlow)
-            .SetFFmpegPath(ffmpegFile.FullName)
-        );
+		Console.WriteLine($"{(successCount == 1 ? "1 video was" : $"{successCount} videos were")} downloaded out of {trimmedVideoCount} ({videos.Count} requested)!");
+		if (isConsoleFed) {
+			Console.WriteLine("Press any key to exit...");
+			Console.ReadKey();
+		}
+	}
+	private static async Task DownloadYouTubeVideo(IVideo video, DirectoryInfo outputDirectory, FileInfo ffmpegFile, string format) {
+		YoutubeClient? youtube = new();
 
-        Console.WriteLine("Download completed!");
+		string outputFilePath = Path.Combine(outputDirectory.FullName, $"{GetSanitizedTitle(video)}.{format}");
 
-        Console.WriteLine($"Video saved as: {outputFilePath}");
-    }
+		Console.WriteLine($"Downloading video : {video.Title} ({video.Url})");
+
+		double progress = 0;
+
+		IProgress<double> progressMonitor = new Progress<double>(p => progress = p);
+		ValueTask downloadTask = youtube.Videos.DownloadAsync(video.Url, outputFilePath, o => o
+			.SetContainer(format)
+			.SetPreset(ConversionPreset.VerySlow)
+			.SetFFmpegPath(ffmpegFile.FullName),
+			progressMonitor
+		);
+
+		char[] spinnerChars = ['|', '/', '-', '\\'];
+		int spinnerIndex = 0;
+		while (!downloadTask.IsCompleted) {
+			const int barWidth = 50; // Width of the progress bar
+			int filledBars = (int)Math.Min(Math.Floor(progress * barWidth), barWidth);
+
+			string progressBar = $"[{new string('#', filledBars)}{new string('-', barWidth - filledBars)}] {progress:P0}";
+			string spinner = spinnerChars[spinnerIndex].ToString();
+
+			Console.Write($"\r{progressBar} {spinner}");
+			spinnerIndex = (spinnerIndex + 1) % spinnerChars.Length;
+
+			await Task.Delay(100);
+		}
+
+		await downloadTask;
+
+		Console.Write($"\rDownload completed : {outputFilePath}\n");
+	}
 }
