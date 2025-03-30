@@ -3,10 +3,15 @@ name: Publish Release
 on:
   repository_dispatch:
     types: [release]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version for the release (e.g., 1.0.0)'
+        required: true
 
 jobs:
   setup:
-    if: ${{ github.event.client_payload.version }}
+    if: ${{ github.event.client_payload.version || github.event.inputs.version }}
     name: Build and Create Release
     runs-on: ubuntu-latest
     outputs:
@@ -30,8 +35,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: v${{ github.event.client_payload.version }}
-        release_name: v${{ github.event.client_payload.version }}
+        tag_name: v${{ github.event.client_payload.version || github.event.inputs.version }}
+        release_name: v${{ github.event.client_payload.version || github.event.inputs.version }}
         draft: false
         prerelease: false
 
