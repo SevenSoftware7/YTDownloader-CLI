@@ -33,6 +33,7 @@ public class Program {
 		string.Join("_", video.Title.Split(Path.GetInvalidFileNameChars()));
 
 	private static async Task Execute(string format, string[] urls, DirectoryInfo outputDirectory, FileInfo ffmpegDirectory) {
+		format = format.ToLowerInvariant();
 		Directory.CreateDirectory(outputDirectory.FullName);
 
 		if (!ffmpegDirectory.Exists) {
@@ -143,6 +144,22 @@ public class Program {
 		}
 
 		await downloadTask;
+
+		using (TagLib.File file = TagLib.File.Create(outputFilePath)) {
+			if (file.GetTag(TagLib.TagTypes.Id3v2) is TagLib.Id3v2.Tag id3v2) {
+				id3v2.Title = video.Title;
+				id3v2.Performers = [video.Author.ChannelTitle];
+				id3v2.SetTextFrame("WOAR", video.Url);
+			}
+			if (file.GetTag(TagLib.TagTypes.Apple) is TagLib.Mpeg4.AppleTag apple) {
+				apple.Title = video.Title;
+				apple.Performers = [video.Author.ChannelTitle];
+				apple.Comment = video.Url;
+			}
+			// TODO: Implement all other video/sound file type metadatas
+			file.Save();
+		}
+
 
 		Console.Write($"\rDownload completed : {outputFilePath}\n");
 	}
