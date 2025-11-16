@@ -1,5 +1,6 @@
 ﻿using System.CommandLine;
 using System.Runtime.InteropServices;
+using System.Text;
 using AngleSharp.Text;
 using YoutubeExplode;
 using YoutubeExplode.Converter;
@@ -89,19 +90,20 @@ public class Program {
 		uint videoCount = (uint)videos.Count;
 		uint trimmedVideoCount = videoCount;
 		uint successCount = 0;
+
 		foreach (IVideo video in videos) {
 			if (outputDirectory.GetFiles().Any(file => file.Name == $"{GetSanitizedTitle(video)}.{format}")) {
-				Console.WriteLine($"Video already exists in the output directory, skipping : {video.Title} ({video.Url})");
+				Console.WriteLine($"\rVideo already exists in the output directory, skipping : {video.Title} ({video.Url})");
 				trimmedVideoCount--;
 				continue;
 			}
 
 			try {
-				await DownloadYouTubeVideo(video, outputDirectory, ffmpegDirectory, format);
+				await DownloadYouTubeVideo(youtube, video, outputDirectory, ffmpegDirectory, format);
 				successCount++;
 			}
 			catch (Exception e) {
-				Console.WriteLine($"Error occurred while downloading video : {e.Message}");
+				Console.WriteLine($"\rError occurred while downloading video : {e.Message}");
 			}
 		}
 
@@ -111,9 +113,7 @@ public class Program {
 			Console.ReadKey();
 		}
 	}
-	private static async Task DownloadYouTubeVideo(IVideo video, DirectoryInfo outputDirectory, FileInfo ffmpegFile, string format) {
-		YoutubeClient? youtube = new();
-
+	private static async Task DownloadYouTubeVideo(YoutubeClient youtube, IVideo video, DirectoryInfo outputDirectory, FileInfo ffmpegFile, string format) {
 		string outputFilePath = Path.Combine(outputDirectory.FullName, $"{GetSanitizedTitle(video)}.{format}");
 
 		Console.WriteLine($"Downloading video : {video.Title} ({video.Url})");
@@ -134,10 +134,29 @@ public class Program {
 			const int barWidth = 50; // Width of the progress bar
 			int filledBars = (int)Math.Min(Math.Floor(progress * barWidth), barWidth);
 
-			string progressBar = $"[{new string('#', filledBars)}{new string('-', barWidth - filledBars)}] {progress:P0}";
-			string spinner = spinnerChars[spinnerIndex].ToString();
+			StringBuilder progressBar = new(barWidth + 6);
+			progressBar.Append('\r');
+			progressBar.Append('[');
+			for (int i = 1; i < barWidth; i++) {
+				if (i < filledBars) {
+					progressBar.Append('=');
+				}
+				else {
+					progressBar.Append(' ');
+				}
+			}
 
-			Console.Write($"\r{progressBar} {spinner}");
+			string progressPercent = $" {progress:P0} ";
+			int percentPosition = barWidth / 2 - 1;
+			for (int i = 0; i < progressPercent.Length && (percentPosition + i) < progressBar.Length; i++) {
+				progressBar[percentPosition + i] = progressPercent[i];
+			}
+			progressBar.Append(']');
+
+			progressBar.Append(' ');
+			progressBar.Append(spinnerChars[spinnerIndex]);
+
+			Console.Write(progressBar.ToString());
 			spinnerIndex = (spinnerIndex + 1) % spinnerChars.Length;
 
 			await Task.Delay(100);
