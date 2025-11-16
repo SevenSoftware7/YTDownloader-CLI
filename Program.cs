@@ -61,6 +61,17 @@ public class Program {
 		videoUrls = [.. urls.Where(url => url.Contains("v="))];
 		playlistUrls = [.. urls.Except(videoUrls).Where(url => url.Contains("list="))];
 
+		if (videoUrls.Length != 0) {
+			try {
+				foreach (string videoUrl in urls) {
+					Video video = await youtube.Videos.GetAsync(videoUrl);
+					videos.Add(video);
+				}
+			}
+			catch (Exception e) {
+				Console.WriteLine($"Error while decoding videos : {e.Message}");
+			}
+		}
 		if (playlistUrls.Length != 0) {
 			try {
 				foreach (string playlistUrl in playlistUrls) {
@@ -73,17 +84,6 @@ public class Program {
 			}
 			catch (Exception e) {
 				Console.WriteLine($"Error while decoding playlist : {e.Message}");
-			}
-		}
-		if (videoUrls.Length != 0) {
-			try {
-				foreach (string videoUrl in urls) {
-					Video video = await youtube.Videos.GetAsync(videoUrl);
-					videos.Add(video);
-				}
-			}
-			catch (Exception e) {
-				Console.WriteLine($"Error while decoding videos : {e.Message}");
 			}
 		}
 
